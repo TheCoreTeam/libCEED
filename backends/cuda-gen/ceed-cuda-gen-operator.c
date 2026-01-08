@@ -109,7 +109,7 @@ CEED_INTERN int CeedKernel_Cuda_low_order(const CeedOperator_Cuda_gen *data);
 static size_t dynamicSMemSize_low_order(const int threads) {
   if (CeedKernel_Cuda_low_order(thread_local_data)) {
     const int num_elem = CeedDivUpInt(threads, thread_local_data->thread_1d * thread_local_data->thread_1d);
-    return thread_local_data->thread_1d * thread_local_data->thread_1d * thread_local_data->thread_1d * num_elem * sizeof(CeedScalar);
+    return 2 * thread_local_data->thread_1d * thread_local_data->thread_1d * thread_local_data->thread_1d * num_elem * sizeof(CeedScalar);
   }
   return threads * sizeof(CeedScalar);
 }

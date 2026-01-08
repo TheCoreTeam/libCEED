@@ -535,15 +535,24 @@ inline __device__ void GradColloSlice3d(SharedData_Cuda &data, const CeedInt q, 
 //------------------------------------------------------------------------------
 // 3D collocated derivatives computation
 //------------------------------------------------------------------------------
-template <int NUM_COMP, int Q_1D, typename UView, typename GView>
-inline __device__ void GradColloSlice3dLowOrder(SharedData_Cuda &data, const CeedInt q, const UView &s_U, const CeedScalar *__restrict__ r_U,
+template <int NUM_COMP, int Q_1D, typename SView, typename GView>
+inline __device__ void GradColloSlice3dLowOrder(SharedData_Cuda &data, const CeedInt q, const SView &smem, const CeedScalar *__restrict__ r_U,
                                                 const GView &r_G, CeedScalar *__restrict__ r_V) {
+  using namespace cute;
+
   if (data.t_id_x < Q_1D && data.t_id_y < Q_1D) {
+    smem(0, q, data.t_id_y, data.t_id_x) = r_U[q + 0 * Q_1D];
+  }
+
 #pragma unroll
-    for (CeedInt comp = 0; comp < NUM_COMP; comp++) {
-      __syncthreads();
-      s_U(q, data.t_id_y, data.t_id_x) = r_U[q + comp * Q_1D];
-      __syncthreads();
+  for (CeedInt comp = 0; comp < NUM_COMP; comp++) {
+    __syncthreads();
+    if (data.t_id_x < Q_1D && data.t_id_y < Q_1D) {
+      const auto s_U      = smem((comp + 0) % 2, _, _, _);
+      const auto s_U_next = smem((comp + 1) % 2, _, _, _);
+      if (comp + 1 < NUM_COMP) {
+        s_U_next(q, data.t_id_y, data.t_id_x) = r_U[q + (comp + 1) * Q_1D];
+      }
       // X derivative
       r_V[comp + 0 * NUM_COMP] = 0.0;
 #pragma unroll

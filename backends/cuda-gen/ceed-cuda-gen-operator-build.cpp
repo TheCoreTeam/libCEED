@@ -32,7 +32,7 @@ struct FieldReuse_Cuda {
 //------------------------------------------------------------------------------
 // Determine kernel specification
 CEED_INTERN int CeedKernel_Cuda_low_order(const CeedOperator_Cuda_gen *data) {
-  // return false;
+  return true;
   if (data->dim == 3) {
     if (data->thread_1d <= 4) {
       return true;
@@ -1140,7 +1140,7 @@ static int CeedOperatorBuildKernelBasis_Cuda_gen_low_order(std::ostringstream &c
 
           code << tab << "CeedScalar r_q" << var_suffix << "[num_comp" << var_suffix << "*" << (is_all_tensor && (dim >= 3) ? Q_name : "1") << "];\n";
           code << tab << function_name << "<num_comp" << var_suffix << ", " << P_name << ", " << Q_name << ">(data, smem, r_e" << var_suffix
-               << ", r_B" << var_suffix << ", smem, r_q" << var_suffix << ");\n";
+               << ", r_B" << var_suffix << ", r_q" << var_suffix << ");\n";
         }
         break;
       case CEED_EVAL_GRAD:
@@ -1161,7 +1161,7 @@ static int CeedOperatorBuildKernelBasis_Cuda_gen_low_order(std::ostringstream &c
           //      << ", s_B" << var_suffix << ", r_q" << var_suffix << ");\n";
           code << tab << "CeedScalar r_q" << var_suffix << "[num_comp" << var_suffix << "*" << Q_name << "];\n";
           code << tab << function_name << "<num_comp" << var_suffix << ", " << P_name << ", " << Q_name << ">(data, smem, r_e" << var_suffix
-               << ", r_B" << var_suffix << ", smem, r_q" << var_suffix << ");\n";
+               << ", r_B" << var_suffix << ", r_q" << var_suffix << ");\n";
         } else if (is_tensor) {
           // TODO: fix this
           return CEED_ERROR_INCOMPATIBLE;
@@ -1241,7 +1241,7 @@ static int CeedOperatorBuildKernelBasis_Cuda_gen_low_order(std::ostringstream &c
                         : "InterpTransposeNonTensor";
 
           code << tab << function_name << "<num_comp" << var_suffix << ", " << P_name << ", " << Q_name << ">(data, smem, r_q" << var_suffix
-               << ", r_B" << var_suffix << ", smem, r_e" << var_suffix << ");\n";
+               << ", r_B" << var_suffix << ", r_e" << var_suffix << ");\n";
         }
         break;
       case CEED_EVAL_GRAD:
@@ -1267,7 +1267,7 @@ static int CeedOperatorBuildKernelBasis_Cuda_gen_low_order(std::ostringstream &c
                                       std::to_string(dim) + "dLowOrder";
 
           code << tab << function_name << "<num_comp" << var_suffix << ", " << P_name << ", " << Q_name << ">(data, smem, r_q" << var_suffix
-               << ", r_B" << var_suffix << ", smem, r_e" << var_suffix << ");\n";
+               << ", r_B" << var_suffix << ", r_e" << var_suffix << ");\n";
         } else if (is_tensor) {
           bool        is_collocated_grad = dim == 3 && Q_1d >= P_1d;
           std::string function_name =
@@ -2391,13 +2391,15 @@ static int CeedOperatorBuildKernel_Cuda_gen_low_order(CeedOperator op, bool *is_
 
   // TODO: fix this
   if (is_all_tensor && max_dim != 1) {
-    std::string slice_code = "data.slice = slice + data.t_id_z";
+    std::string slice_code = "data.slice = slice + 2 * data.t_id_z";
     for (CeedInt i = 0; i < max_dim; i++) {
       slice_code += " * OP_T_1D";
     }
     slice_code += ";\n";
     code << tab << slice_code;
-    code << tab << "auto smem = make_tensor(data.slice, make_layout(make_shape(Int<OP_T_1D>{}, Int<OP_T_1D>{}, Int<OP_T_1D>{}), LayoutRight{}));\n";
+    code << tab
+         << "auto smem = make_tensor(data.slice, make_layout(make_shape(Int<2>{}, Int<OP_T_1D>{}, Int<OP_T_1D>{}, Int<OP_T_1D>{}), "
+            "LayoutRight{}));\n";
   } else {
     return CEED_ERROR_INCOMPATIBLE;
   }
