@@ -8,3 +8,15 @@
 // This file and definition is used for in-source builds.
 // The definition for installs is in ceed-jit-source-root-install.c.
 const char *CeedJitSourceRootDefault = CEED_JIT_SOURCE_ROOT_DEFAULT;
+
+#if defined (CEED_JIT_CUTE_SOURCE_ROOT_DEFAULT)
+const char *CeedJitCuteSourceRootDefault = CEED_JIT_CUTE_SOURCE_ROOT_DEFAULT;
+#else
+const char *CeedJitCuteSourceRootDefault = CEED_JIT_SOURCE_ROOT_DEFAULT;
+#endif
+
+#if defined (CEED_JIT_CUDA_SOURCE_ROOT_DEFAULT)
+const char *CeedJitCudaSourceRootDefault = CEED_JIT_CUDA_SOURCE_ROOT_DEFAULT;
+#else
+const char *CeedJitCudaSourceRootDefault = CEED_JIT_SOURCE_ROOT_DEFAULT;
+#endif

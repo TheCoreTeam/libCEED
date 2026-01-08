@@ -7,7 +7,13 @@
 
 /// @file
 /// Internal header for CUDA shared memory tensor product basis templates
+#pragma once
+
 #include <ceed/types.h>
+#include <cute/tensor.hpp>
+
+// #define MASK (data.t_id_x == 0 && data.t_id_y == 0 && data.t_id_z == 0 && blockIdx.x == 0)
+#define MASK 0
 
 //------------------------------------------------------------------------------
 // 1D
@@ -339,6 +345,42 @@ inline __device__ void ContractX3d(SharedData_Cuda &data, const CeedScalar *U, c
 }
 
 //------------------------------------------------------------------------------
+// 3D tensor contract x
+//------------------------------------------------------------------------------
+template <int P_1D, int Q_1D, typename UView, typename BView, typename VView>
+inline __device__ void ContractX3dLowOrder(SharedData_Cuda &data, const UView &U, const BView &B, const VView &V) {
+  static_assert(UView::rank == 3, "The tensor must be a rank-3 one");
+  static_assert(BView::rank == 2, "The tensor must be a rank-2 one");
+  static_assert(VView::rank == 3, "The tensor must be a rank-3 one");
+
+  if (data.t_id_x < P_1D && data.t_id_y < P_1D) {
+    CeedScalar v_reg[Q_1D];
+
+#pragma unroll
+    for (CeedInt n = 0; n < Q_1D; n++) {
+      v_reg[n] = 0;
+    }
+
+#pragma unroll
+    for (CeedInt k = 0; k < P_1D; k++) {
+      const auto u_element = U(data.t_id_y, data.t_id_x, k);
+#pragma unroll
+      for (CeedInt n = 0; n < Q_1D; n++) {
+        v_reg[n] += u_element * B(k, n);
+      }
+    }
+    __syncthreads();
+
+    // U and V may overlap
+#pragma unroll
+    for (CeedInt n = 0; n < Q_1D; n++) {
+      V(data.t_id_y, data.t_id_x, n) = v_reg[n];
+    }
+  }
+  __syncthreads();
+}
+
+//------------------------------------------------------------------------------
 // 3D tensor contract y
 //------------------------------------------------------------------------------
 template <int NUM_COMP, int P_1D, int Q_1D, int T_1D>
@@ -362,6 +404,42 @@ inline __device__ void ContractY3d(SharedData_Cuda &data, const CeedScalar *U, c
 }
 
 //------------------------------------------------------------------------------
+// 3D tensor contract y
+//------------------------------------------------------------------------------
+template <int P_1D, int Q_1D, typename UView, typename BView, typename VView>
+inline __device__ void ContractY3dLowOrder(SharedData_Cuda &data, const UView &U, const BView &B, const VView &V) {
+  static_assert(UView::rank == 3, "The tensor must be a rank-3 one");
+  static_assert(BView::rank == 2, "The tensor must be a rank-2 one");
+  static_assert(VView::rank == 3, "The tensor must be a rank-3 one");
+
+  if (data.t_id_x < Q_1D && data.t_id_y < P_1D) {
+    CeedScalar v_reg[Q_1D];
+
+#pragma unroll
+    for (CeedInt n = 0; n < Q_1D; n++) {
+      v_reg[n] = 0;
+    }
+
+#pragma unroll
+    for (CeedInt k = 0; k < P_1D; k++) {
+      const auto u_element = U(data.t_id_y, k, data.t_id_x);
+#pragma unroll
+      for (CeedInt n = 0; n < Q_1D; n++) {
+        v_reg[n] += u_element * B(k, n);
+      }
+    }
+    __syncthreads();
+
+    // U and V may overlap
+#pragma unroll
+    for (CeedInt n = 0; n < Q_1D; n++) {
+      V(data.t_id_y, n, data.t_id_x) = v_reg[n];
+    }
+  }
+  __syncthreads();
+}
+
+//------------------------------------------------------------------------------
 // 3D tensor contract z
 //------------------------------------------------------------------------------
 template <int NUM_COMP, int P_1D, int Q_1D, int T_1D>
@@ -377,6 +455,43 @@ inline __device__ void ContractZ3d(SharedData_Cuda &data, const CeedScalar *U, c
 }
 
 //------------------------------------------------------------------------------
+// 3D tensor contract z
+//------------------------------------------------------------------------------
+template <int P_1D, int Q_1D, typename UView, typename BView, typename VView>
+inline __device__ void ContractZ3dLowOrder(SharedData_Cuda &data, const UView &U, const BView &B, const VView &V, CeedScalar *r_V) {
+  static_assert(UView::rank == 3, "The tensor must be a rank-3 one");
+  static_assert(BView::rank == 2, "The tensor must be a rank-2 one");
+  static_assert(VView::rank == 3, "The tensor must be a rank-3 one");
+
+  if (data.t_id_x < Q_1D && data.t_id_y < Q_1D) {
+    CeedScalar v_reg[Q_1D];
+
+#pragma unroll
+    for (CeedInt n = 0; n < Q_1D; n++) {
+      v_reg[n] = 0;
+    }
+
+#pragma unroll
+    for (CeedInt k = 0; k < P_1D; k++) {
+      const auto u_element = U(k, data.t_id_y, data.t_id_x);
+#pragma unroll
+      for (CeedInt n = 0; n < Q_1D; n++) {
+        v_reg[n] += u_element * B(k, n);
+      }
+    }
+    __syncthreads();
+
+    // U and V may overlap
+#pragma unroll
+    for (CeedInt n = 0; n < Q_1D; n++) {
+      // V(n, data.t_id_y, data.t_id_x) = v_reg[n];
+      r_V[n] = v_reg[n];
+    }
+  }
+  // __syncthreads();
+}
+
+//------------------------------------------------------------------------------
 // 3D transpose tensor contract z
 //------------------------------------------------------------------------------
 template <int NUM_COMP, int P_1D, int Q_1D, int T_1D>
@@ -389,6 +504,42 @@ inline __device__ void ContractTransposeZ3d(SharedData_Cuda &data, const CeedSca
       }
     }
   }
+}
+
+//------------------------------------------------------------------------------
+// 3D transpose tensor contract z
+//------------------------------------------------------------------------------
+template <int P_1D, int Q_1D, typename UView, typename BView, typename VView>
+inline __device__ void ContractTransposeZ3dLowOrder(SharedData_Cuda &data, const UView &U, const BView &B, const VView &V) {
+  static_assert(UView::rank == 3, "The tensor must be a rank-3 one");
+  static_assert(BView::rank == 2, "The tensor must be a rank-2 one");
+  static_assert(VView::rank == 3, "The tensor must be a rank-3 one");
+
+  if (data.t_id_x < Q_1D && data.t_id_y < Q_1D) {
+    CeedScalar v_reg[P_1D];
+
+#pragma unroll
+    for (CeedInt n = 0; n < P_1D; n++) {
+      v_reg[n] = 0;
+    }
+
+#pragma unroll
+    for (CeedInt k = 0; k < Q_1D; k++) {
+      const auto u_element = U(k, data.t_id_y, data.t_id_x);
+#pragma unroll
+      for (CeedInt n = 0; n < P_1D; n++) {
+        v_reg[n] += u_element * B(n, k);
+      }
+    }
+    __syncthreads();
+
+    // U and V may overlap
+#pragma unroll
+    for (CeedInt n = 0; n < P_1D; n++) {
+      V(n, data.t_id_y, data.t_id_x) = v_reg[n];
+    }
+  }
+  __syncthreads();
 }
 
 //------------------------------------------------------------------------------
@@ -412,6 +563,42 @@ inline __device__ void ContractTransposeY3d(SharedData_Cuda &data, const CeedSca
       }
     }
   }
+}
+
+//------------------------------------------------------------------------------
+// 3D transpose tensor contract y
+//------------------------------------------------------------------------------
+template <int P_1D, int Q_1D, typename UView, typename BView, typename VView>
+inline __device__ void ContractTransposeY3dLowOrder(SharedData_Cuda &data, const UView &U, const BView &B, const VView &V) {
+  static_assert(UView::rank == 3, "The tensor must be a rank-3 one");
+  static_assert(BView::rank == 2, "The tensor must be a rank-2 one");
+  static_assert(VView::rank == 3, "The tensor must be a rank-3 one");
+
+  if (data.t_id_x < Q_1D && data.t_id_y < P_1D) {
+    CeedScalar v_reg[P_1D];
+
+#pragma unroll
+    for (CeedInt n = 0; n < P_1D; n++) {
+      v_reg[n] = 0;
+    }
+
+#pragma unroll
+    for (CeedInt k = 0; k < Q_1D; k++) {
+      const auto u_element = U(data.t_id_y, k, data.t_id_x);
+#pragma unroll
+      for (CeedInt n = 0; n < P_1D; n++) {
+        v_reg[n] += u_element * B(n, k);
+      }
+    }
+    __syncthreads();
+
+    // U and V may overlap
+#pragma unroll
+    for (CeedInt n = 0; n < P_1D; n++) {
+      V(data.t_id_y, n, data.t_id_x) = v_reg[n];
+    }
+  }
+  __syncthreads();
 }
 
 //------------------------------------------------------------------------------
@@ -460,6 +647,42 @@ inline __device__ void ContractTransposeX3d(SharedData_Cuda &data, const CeedSca
 }
 
 //------------------------------------------------------------------------------
+// 3D transpose tensor contract x
+//------------------------------------------------------------------------------
+template <int P_1D, int Q_1D, typename UView, typename BView, typename VView>
+inline __device__ void ContractTransposeX3dLowOrder(SharedData_Cuda &data, const UView &U, const BView &B, const VView &V) {
+  static_assert(UView::rank == 3, "The tensor must be a rank-3 one");
+  static_assert(BView::rank == 2, "The tensor must be a rank-2 one");
+  static_assert(VView::rank == 3, "The tensor must be a rank-3 one");
+
+  if (data.t_id_x < P_1D && data.t_id_y < P_1D) {
+    CeedScalar v_reg[P_1D];
+
+#pragma unroll
+    for (CeedInt n = 0; n < P_1D; n++) {
+      v_reg[n] = 0;
+    }
+
+#pragma unroll
+    for (CeedInt k = 0; k < Q_1D; k++) {
+      const auto u_element = U(data.t_id_y, data.t_id_x, k);
+#pragma unroll
+      for (CeedInt n = 0; n < P_1D; n++) {
+        v_reg[n] += u_element * B(n, k);
+      }
+    }
+    __syncthreads();
+
+    // U and V may overlap
+#pragma unroll
+    for (CeedInt n = 0; n < P_1D; n++) {
+      V(data.t_id_y, data.t_id_x, n) = v_reg[n];
+    }
+  }
+  __syncthreads();
+}
+
+//------------------------------------------------------------------------------
 // 3D transpose tensor contract add x
 //------------------------------------------------------------------------------
 template <int NUM_COMP, int P_1D, int Q_1D, int T_1D>
@@ -496,6 +719,27 @@ inline __device__ void InterpTensor3d(SharedData_Cuda &data, const CeedScalar *_
   }
 }
 
+template <int NUM_COMP, int P_1D, int Q_1D, typename UView, typename BView, typename VView>
+inline __device__ void InterpTensor3dLowOrder(SharedData_Cuda &data, UView &s_U, const CeedScalar *__restrict__ r_U, const BView &r_B,
+                                              VView &__restrict__ s_V, CeedScalar *__restrict__ r_V) {
+  using namespace cute;
+
+#pragma unroll
+  for (CeedInt comp = 0; comp < NUM_COMP; comp++) {
+    __syncthreads();
+    if (data.t_id_x < P_1D && data.t_id_y < P_1D) {
+#pragma unroll
+      for (CeedInt z = 0; z < P_1D; z++) {
+        s_U(z, data.t_id_y, data.t_id_x) = r_U[comp * P_1D + z];
+      }
+    }
+    __syncthreads();
+    ContractX3dLowOrder<P_1D, Q_1D>(data, s_U, r_B, s_V);
+    ContractY3dLowOrder<P_1D, Q_1D>(data, s_V, r_B, s_U);
+    ContractZ3dLowOrder<P_1D, Q_1D>(data, s_U, r_B, s_V, &r_V[comp * Q_1D]);
+  }
+}
+
 //------------------------------------------------------------------------------
 // 3D interpolate transpose
 //------------------------------------------------------------------------------
@@ -508,6 +752,37 @@ inline __device__ void InterpTransposeTensor3d(SharedData_Cuda &data, const Ceed
     ContractTransposeZ3d<NUM_COMP, P_1D, Q_1D, T_1D>(data, &r_U[comp * Q_1D], c_B, r_t1);
     ContractTransposeY3d<NUM_COMP, P_1D, Q_1D, T_1D>(data, r_t1, c_B, r_t2);
     ContractTransposeX3d<NUM_COMP, P_1D, Q_1D, T_1D>(data, r_t2, c_B, &r_V[comp * P_1D]);
+  }
+}
+
+//------------------------------------------------------------------------------
+// 3D interpolate transpose
+//------------------------------------------------------------------------------
+template <int NUM_COMP, int P_1D, int Q_1D, typename UView, typename BView, typename VView>
+inline __device__ void InterpTransposeTensor3dLowOrder(SharedData_Cuda &data, const UView &s_U, const CeedScalar *__restrict__ r_U, const BView &r_B,
+                                                       VView &s_V, CeedScalar *__restrict__ r_V) {
+  using namespace cute;
+
+#pragma unroll
+  for (CeedInt comp = 0; comp < NUM_COMP; comp++) {
+    __syncthreads();
+    if (data.t_id_x < Q_1D && data.t_id_y < Q_1D) {
+#pragma unroll
+      for (CeedInt z = 0; z < Q_1D; z++) {
+        s_U(z, data.t_id_y, data.t_id_x) = r_U[comp * Q_1D + z];
+      }
+    }
+    __syncthreads();
+    ContractTransposeZ3dLowOrder<P_1D, Q_1D>(data, s_U, r_B, s_V);
+    ContractTransposeY3dLowOrder<P_1D, Q_1D>(data, s_V, r_B, s_U);
+    ContractTransposeX3dLowOrder<P_1D, Q_1D>(data, s_U, r_B, s_V);
+
+    if (data.t_id_x < P_1D && data.t_id_y < P_1D) {
+#pragma unroll
+      for (CeedInt z = 0; z < P_1D; z++) {
+        r_V[comp * P_1D + z] = s_V(z, data.t_id_y, data.t_id_x);
+      }
+    }
   }
 }
 

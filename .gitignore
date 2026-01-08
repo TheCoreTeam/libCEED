@@ -80,6 +80,7 @@ perf.data
 .cache/
 .history
 .vscode
+.idea
 .ccls-cache
 .vim
 libCEED.cflags

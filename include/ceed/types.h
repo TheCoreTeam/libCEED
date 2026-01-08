@@ -23,7 +23,9 @@
 **/
 #ifndef CEED_QFUNCTION_ATTR
 #ifndef __NO_INLINE__
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__CUDACC__)
+#define CEED_QFUNCTION_ATTR __host__ __device__
+#elif defined(__GNUC__) || defined(__clang__)
 #define CEED_QFUNCTION_ATTR __attribute__((flatten))
 #elif defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
 #define CEED_QFUNCTION_ATTR _Pragma("forceinline")
@@ -31,7 +33,11 @@
 #define CEED_QFUNCTION_ATTR
 #endif
 #else
+#if defined(__CUDACC__)
+#define CEED_QFUNCTION_ATTR __host__ __device__
+#else
 #define CEED_QFUNCTION_ATTR
+#endif
 #endif
 #if defined(__GNUC__) || defined(__clang__)
 #define CEED_QFUNCTION_HELPER_ATTR CEED_QFUNCTION_ATTR __attribute__((always_inline))

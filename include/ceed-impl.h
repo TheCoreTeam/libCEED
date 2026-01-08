@@ -15,6 +15,10 @@
 
 CEED_INTERN const char *CeedJitSourceRootDefault;
 
+CEED_INTERN const char *CeedJitCuteSourceRootDefault;
+
+CEED_INTERN const char *CeedJitCudaSourceRootDefault;
+
 /** @defgroup CeedUser Public API for Ceed
     @ingroup Ceed
 */

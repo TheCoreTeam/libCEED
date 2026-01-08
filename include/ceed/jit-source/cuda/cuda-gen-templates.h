@@ -7,6 +7,8 @@
 
 /// @file
 /// Internal header for CUDA backend macro and type definitions for JiT source
+#pragma once
+
 #include <ceed/types.h>
 
 //------------------------------------------------------------------------------
@@ -15,6 +17,14 @@
 template <int P, int Q>
 inline __device__ void LoadMatrix(SharedData_Cuda &data, const CeedScalar *__restrict__ d_B, CeedScalar *B) {
   for (CeedInt i = data.t_id; i < P * Q; i += blockDim.x * blockDim.y * blockDim.z) B[i] = d_B[i];
+}
+
+//------------------------------------------------------------------------------
+// Load matrices for basis actions
+//------------------------------------------------------------------------------
+template <int P, int Q, typename BView>
+inline __device__ void LoadMatrix(SharedData_Cuda &data, const CeedScalar *__restrict__ d_B, BView &B) {
+  for (CeedInt i = 0; i < P * Q; ++i) B[i] = d_B[i];
 }
 
 //------------------------------------------------------------------------------
@@ -351,6 +361,26 @@ inline __device__ void ReadLVecStrided3d(SharedData_Cuda &data, const CeedInt el
 }
 
 //------------------------------------------------------------------------------
+// L-vector -> E-vector, strided
+//------------------------------------------------------------------------------
+template <int NUM_COMP, int P_1D, int STRIDES_NODE, int STRIDES_COMP, int STRIDES_ELEM>
+inline __device__ void ReadLVecStrided3dLowOrder(SharedData_Cuda &data, const CeedInt elem, const CeedScalar *__restrict__ d_u,
+                                                 CeedScalar *__restrict__ r_u) {
+  if (data.t_id_x < P_1D && data.t_id_y < P_1D) {
+#pragma unroll
+    for (CeedInt z = 0; z < P_1D; z++) {
+      const CeedInt node = data.t_id_x + data.t_id_y * P_1D + z * P_1D * P_1D;
+      const CeedInt ind  = node * STRIDES_NODE + elem * STRIDES_ELEM;
+
+#pragma unroll
+      for (CeedInt comp = 0; comp < NUM_COMP; comp++) {
+        r_u[z + comp * P_1D] = d_u[ind + comp * STRIDES_COMP];
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 // E-vector -> Q-vector, offests provided
 //------------------------------------------------------------------------------
 template <int NUM_COMP, int COMP_STRIDE, int Q_1D>
@@ -497,6 +527,71 @@ inline __device__ void GradColloSlice3d(SharedData_Cuda &data, const CeedInt q, 
       r_V[comp + 2 * NUM_COMP] = 0.0;
       for (CeedInt i = 0; i < Q_1D; i++) {
         r_V[comp + 2 * NUM_COMP] += c_G[i + q * Q_1D] * r_U[i + comp * Q_1D];
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// 3D collocated derivatives computation
+//------------------------------------------------------------------------------
+template <int NUM_COMP, int Q_1D, typename UView, typename GView>
+inline __device__ void GradColloSlice3dLowOrder(SharedData_Cuda &data, const CeedInt q, const UView &s_U, const CeedScalar *__restrict__ r_U,
+                                                const GView &r_G, CeedScalar *__restrict__ r_V) {
+  if (data.t_id_x < Q_1D && data.t_id_y < Q_1D) {
+#pragma unroll
+    for (CeedInt comp = 0; comp < NUM_COMP; comp++) {
+      __syncthreads();
+      s_U(q, data.t_id_y, data.t_id_x) = r_U[q + comp * Q_1D];
+      __syncthreads();
+      // X derivative
+      r_V[comp + 0 * NUM_COMP] = 0.0;
+#pragma unroll
+      for (CeedInt i = 0; i < Q_1D; i++) {
+        r_V[comp + 0 * NUM_COMP] += r_G(i, data.t_id_x) * s_U(q, data.t_id_y, i);
+      }
+      // Y derivative
+      r_V[comp + 1 * NUM_COMP] = 0.0;
+#pragma unroll
+      for (CeedInt i = 0; i < Q_1D; i++) {
+        r_V[comp + 1 * NUM_COMP] += r_G(i, data.t_id_y) * s_U(q, i, data.t_id_x);
+      }
+      // Z derivative
+      r_V[comp + 2 * NUM_COMP] = 0.0;
+#pragma unroll
+      for (CeedInt i = 0; i < Q_1D; i++) {
+        r_V[comp + 2 * NUM_COMP] += r_G(i, q) * r_U[i + comp * Q_1D];
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// 3D collocated derivatives computation
+//------------------------------------------------------------------------------
+template <int NUM_COMP, int Q_1D, typename UView, typename GView>
+inline __device__ void GradColloSlice3dLowOrder(SharedData_Cuda &data, const CeedInt q, const UView &s_U, const GView &r_G,
+                                                CeedScalar *__restrict__ r_V) {
+  if (data.t_id_x < Q_1D && data.t_id_y < Q_1D) {
+#pragma unroll
+    for (CeedInt comp = 0; comp < NUM_COMP; comp++) {
+      // X derivative
+      r_V[comp + 0 * NUM_COMP] = 0.0;
+#pragma unroll
+      for (CeedInt i = 0; i < Q_1D; i++) {
+        r_V[comp + 0 * NUM_COMP] += r_G(data.t_id_x, i) * s_U(comp, q, data.t_id_y, i);
+      }
+      // Y derivative
+      r_V[comp + 1 * NUM_COMP] = 0.0;
+#pragma unroll
+      for (CeedInt i = 0; i < Q_1D; i++) {
+        r_V[comp + 1 * NUM_COMP] += r_G(data.t_id_y, i) * s_U(comp, q, data.t_id_x, i);
+      }
+      // Z derivative
+      r_V[comp + 2 * NUM_COMP] = 0.0;
+#pragma unroll
+      for (CeedInt i = 0; i < Q_1D; i++) {
+        r_V[comp + 2 * NUM_COMP] += r_G(q, i) * s_U(comp, i, data.t_id_y, data.t_id_x);
       }
     }
   }

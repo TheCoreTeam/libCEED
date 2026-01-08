@@ -104,6 +104,13 @@ static int CeedCompileCore_Cuda(Ceed ceed, const char *source, const bool throw_
   }
 
   // Standard libCEED definitions for CUDA backends
+  code << "#ifndef CEED_JIT_TYPES\n";
+  code << "#define CEED_JIT_TYPES\n";
+  code << "typedef int int32_t;\n";
+  code << "typedef unsigned int uint32_t;\n";
+  code << "typedef long long int64_t;\n";
+  code << "typedef unsigned long long uint64_t;\n";
+  code << "#endif\n\n";
   code << "#include <ceed/jit-source/cuda/cuda-jit.h>\n\n";
 
   // Non-macro options
@@ -123,7 +130,8 @@ static int CeedCompileCore_Cuda(Ceed ceed, const char *source, const bool throw_
 #endif
       + std::to_string(prop.major) + std::to_string(prop.minor);
   opts[1] = arch_arg.c_str();
-  opts[2] = "-Dint32_t=int";
+  // opts[2] = "-Dint32_t=int";
+  opts[2] = "-std=c++17";
   opts[3] = "-DCEED_RUNNING_JIT_PASS=1";
   // Additional include dirs
   {
