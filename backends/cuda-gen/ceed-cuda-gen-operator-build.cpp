@@ -494,7 +494,7 @@ static int CeedOperatorBuildKernelFieldData_Cuda_gen_low_order(std::ostringstrea
           // code << tab << "__shared__ CeedScalar s_B" << var_suffix << "[" << P_name << "*" << Q_name << "];\n";
           // code << tab << "LoadMatrix<" << P_name << ", " << Q_name << ">(data, B." << option_name << "[" << i << "], s_B" << var_suffix << ");\n";
           code << tab << "auto r_B" << var_suffix << " = make_tensor<CeedScalar>(make_layout(make_shape(Int<" << P_name << ">{}, Int<" << Q_name
-               << ">{}), LayoutRight{}));\n";
+               << ">{}), LayoutLeft{}));\n";
           code << tab << "LoadMatrix<" << P_name << ", " << Q_name << ">(data, B." << option_name << "[" << i << "], r_B" << var_suffix << ");\n";
         }
       }
@@ -536,7 +536,7 @@ static int CeedOperatorBuildKernelFieldData_Cuda_gen_low_order(std::ostringstrea
             // code << tab << "__shared__ CeedScalar s_B" << var_suffix << "[" << P_name << "*" << Q_name << "];\n";
             // code << tab << "LoadMatrix<" << P_name << ", " << Q_name << ">(data, B." << option_name << "[" << i << "], s_B" << var_suffix << ");\n";
             code << tab << "auto r_B" << var_suffix << " = make_tensor<CeedScalar>(make_layout(make_shape(Int<" << P_name << ">{}, Int<" << Q_name
-                 << ">{}), LayoutRight{}));\n";
+                 << ">{}), LayoutLeft{}));\n";
             code << tab << "LoadMatrix<" << P_name << ", " << Q_name << ">(data, B." << option_name << "[" << i << "], r_B" << var_suffix << ");\n";
           }
         }
@@ -555,7 +555,7 @@ static int CeedOperatorBuildKernelFieldData_Cuda_gen_low_order(std::ostringstrea
           // code << tab << "__shared__ CeedScalar s_G" << var_suffix << "[" << Q_name << "*" << Q_name << "];\n";
           // code << tab << "LoadMatrix<" << Q_name << ", " << Q_name << ">(data, G." << option_name << "[" << i << "], s_G" << var_suffix << ");\n";
           code << tab << "auto r_G" << var_suffix << " = make_tensor<CeedScalar>(make_layout(make_shape(Int<" << Q_name << ">{}, Int<" << Q_name
-               << ">{}), LayoutRight{}));\n";
+               << ">{}), LayoutLeft{}));\n";
           code << tab << "LoadMatrix<" << Q_name << ", " << Q_name << ">(data, G." << option_name << "[" << i << "], r_G" << var_suffix << ");\n";
         }
       } else {
@@ -574,7 +574,7 @@ static int CeedOperatorBuildKernelFieldData_Cuda_gen_low_order(std::ostringstrea
             // code << tab << "__shared__ CeedScalar s_G" << var_suffix << "[" << Q_name << "*" << Q_name << "];\n";
             // code << tab << "LoadMatrix<" << Q_name << ", " << Q_name << ">(data, G." << option_name << "[" << i << "], s_G" << var_suffix << ");\n";
             code << tab << "auto r_G" << var_suffix << " = make_tensor<CeedScalar>(make_layout(make_shape(Int<" << Q_name << ">{}, Int<" << Q_name
-                 << ">{}), LayoutRight{}));\n";
+                 << ">{}), LayoutLeft{}));\n";
             code << tab << "LoadMatrix<" << Q_name << ", " << Q_name << ">(data, G." << option_name << "[" << i << "], r_G" << var_suffix << ");\n";
           }
         } else {
@@ -589,14 +589,14 @@ static int CeedOperatorBuildKernelFieldData_Cuda_gen_low_order(std::ostringstrea
               // code << tab << "__shared__ CeedScalar s_G" << var_suffix << "[" << P_name << "*" << Q_name << "];\n";
               // code << tab << "LoadMatrix<" << P_name << ", " << Q_name << ">(data, G." << option_name << "[" << i << "], s_G" << var_suffix << ");\n";
               code << tab << "auto r_G" << var_suffix << " = make_tensor<CeedScalar>(make_layout(make_shape(Int<" << P_name << ">{}, Int<" << Q_name
-                   << ">{}), LayoutRight{}));\n";
+                   << ">{}), LayoutLeft{}));\n";
               code << tab << "LoadMatrix<" << P_name << ", " << Q_name << ">(data, G." << option_name << "[" << i << "], r_G" << var_suffix << ");\n";
             } else {
               // code << tab << "__shared__ CeedScalar s_G" << var_suffix << "[" << P_name << "*" << Q_name << "*dim" << var_suffix << "];\n";
               // code << tab << "LoadMatrix<" << P_name << ", " << Q_name << "*dim" << var_suffix << ">(data, G." << option_name << "[" << i << "], s_G"
               //      << var_suffix << ");\n";
               code << tab << "auto r_G" << var_suffix << " = make_tensor<CeedScalar>(make_layout(make_shape(Int<" << P_name << ">{}, Int<" << Q_name
-                   << " * dim" << var_suffix << ">{}), LayoutRight{}));\n";
+                   << " * dim" << var_suffix << ">{}), LayoutLeft{}));\n";
               code << tab << "LoadMatrix<" << P_name << ", " << Q_name << " * dim" << var_suffix << ">(data, G." << option_name << "[" << i
                    << "], r_G" << var_suffix << ");\n";
             }

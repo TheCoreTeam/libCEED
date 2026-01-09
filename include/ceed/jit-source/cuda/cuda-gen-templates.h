@@ -576,37 +576,6 @@ inline __device__ void GradColloSlice3dLowOrder(SharedData_Cuda &data, const Cee
 }
 
 //------------------------------------------------------------------------------
-// 3D collocated derivatives computation
-//------------------------------------------------------------------------------
-template <int NUM_COMP, int Q_1D, typename UView, typename GView>
-inline __device__ void GradColloSlice3dLowOrder(SharedData_Cuda &data, const CeedInt q, const UView &s_U, const GView &r_G,
-                                                CeedScalar *__restrict__ r_V) {
-  if (data.t_id_x < Q_1D && data.t_id_y < Q_1D) {
-#pragma unroll
-    for (CeedInt comp = 0; comp < NUM_COMP; comp++) {
-      // X derivative
-      r_V[comp + 0 * NUM_COMP] = 0.0;
-#pragma unroll
-      for (CeedInt i = 0; i < Q_1D; i++) {
-        r_V[comp + 0 * NUM_COMP] += r_G(data.t_id_x, i) * s_U(comp, q, data.t_id_y, i);
-      }
-      // Y derivative
-      r_V[comp + 1 * NUM_COMP] = 0.0;
-#pragma unroll
-      for (CeedInt i = 0; i < Q_1D; i++) {
-        r_V[comp + 1 * NUM_COMP] += r_G(data.t_id_y, i) * s_U(comp, q, data.t_id_x, i);
-      }
-      // Z derivative
-      r_V[comp + 2 * NUM_COMP] = 0.0;
-#pragma unroll
-      for (CeedInt i = 0; i < Q_1D; i++) {
-        r_V[comp + 2 * NUM_COMP] += r_G(q, i) * s_U(comp, i, data.t_id_y, data.t_id_x);
-      }
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
 // 3D collocated derivatives transpose
 //------------------------------------------------------------------------------
 template <int NUM_COMP, int Q_1D, int T_1D>
